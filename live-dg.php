@@ -41,7 +41,8 @@ function ldgAutoloader(string $class): void
     }
 
     $className = str_replace('LiveDG\\', '', $class);
-    $className = str_replace('_', '-', strtolower($className));
+    $className = preg_replace('/([a-z])([A-Z])/', '$1-$2', $className);
+    $className = strtolower($className);
     $file = LDG_PLUGIN_DIR . 'includes/class-' . $className . '.php';
 
     if (file_exists($file)) {
