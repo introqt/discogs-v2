@@ -98,4 +98,4 @@ function ldgDeactivate(): void
 register_activation_hook(__FILE__, __NAMESPACE__ . '\\ldgActivate');
 register_deactivation_hook(__FILE__, __NAMESPACE__ . '\\ldgDeactivate');
 
-ldg();
+ldg()->run();
