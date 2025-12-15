@@ -1,0 +1,371 @@
+/**
+ * LiveDG Admin Styles
+ *
+ * @package LiveDG
+ */
+
+.ldg-dashboard-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+    gap: 20px;
+    margin-top: 20px;
+}
+
+.ldg-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    box-shadow: 0 1px 1px rgba(0, 0, 0, 0.04);
+}
+
+.ldg-card h2 {
+    margin-top: 0;
+    font-size: 18px;
+    border-bottom: 1px solid #e1e1e1;
+    padding-bottom: 10px;
+}
+
+.ldg-full-width {
+    grid-column: 1 / -1;
+}
+
+.ldg-stats {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.ldg-stat-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 10px;
+    background: #f6f7f7;
+    border-radius: 3px;
+}
+
+.ldg-stat-label {
+    font-weight: 500;
+    color: #50575e;
+}
+
+.ldg-stat-value {
+    font-size: 24px;
+    font-weight: 700;
+    color: #2271b1;
+}
+
+.ldg-actions {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+.ldg-getting-started {
+    padding-left: 20px;
+}
+
+.ldg-getting-started li {
+    margin-bottom: 20px;
+}
+
+.ldg-getting-started strong {
+    display: block;
+    margin-bottom: 5px;
+    font-size: 16px;
+}
+
+.ldg-log-level {
+    display: inline-block;
+    padding: 3px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+.ldg-log-error {
+    background: #dc3232;
+    color: #fff;
+}
+
+.ldg-log-warning {
+    background: #f0b849;
+    color: #000;
+}
+
+.ldg-log-info {
+    background: #72aee6;
+    color: #fff;
+}
+
+.ldg-log-success {
+    background: #00a32a;
+    color: #fff;
+}
+
+.ldg-log-debug {
+    background: #646970;
+    color: #fff;
+}
+
+.ldg-search-form {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+    margin: 20px 0;
+}
+
+.ldg-search-form .search-box {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.ldg-search-form input[type="search"] {
+    flex: 1;
+    max-width: 600px;
+}
+
+.ldg-results-count {
+    margin: 20px 0;
+    font-weight: 600;
+    color: #50575e;
+}
+
+.ldg-results-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.ldg-result-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    overflow: hidden;
+    transition: box-shadow 0.2s;
+}
+
+.ldg-result-card:hover {
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+}
+
+.ldg-result-image {
+    width: 100%;
+    height: 300px;
+    background: #f0f0f1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
+}
+
+.ldg-result-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+}
+
+.ldg-result-content {
+    padding: 15px;
+}
+
+.ldg-result-title {
+    margin: 0 0 10px 0;
+    font-size: 16px;
+    font-weight: 600;
+    color: #1d2327;
+}
+
+.ldg-result-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-bottom: 15px;
+    font-size: 13px;
+    color: #646970;
+}
+
+.ldg-result-meta span {
+    background: #f6f7f7;
+    padding: 3px 8px;
+    border-radius: 3px;
+}
+
+.ldg-result-actions {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+.ldg-pagination {
+    display: flex;
+    gap: 5px;
+    justify-content: center;
+    margin: 30px 0;
+}
+
+.ldg-modal {
+    display: none;
+    position: fixed;
+    z-index: 100000;
+    left: 0;
+    top: 0;
+    width: 100%;
+    height: 100%;
+    overflow: auto;
+    background-color: rgba(0, 0, 0, 0.6);
+}
+
+.ldg-modal-content {
+    background-color: #fff;
+    margin: 5% auto;
+    padding: 30px;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    width: 90%;
+    max-width: 600px;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3);
+}
+
+.ldg-modal-close {
+    color: #646970;
+    float: right;
+    font-size: 28px;
+    font-weight: bold;
+    line-height: 20px;
+    cursor: pointer;
+}
+
+.ldg-modal-close:hover,
+.ldg-modal-close:focus {
+    color: #000;
+}
+
+.ldg-modal h2 {
+    margin-top: 0;
+}
+
+.ldg-settings .ldg-tools {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+    gap: 20px;
+    margin: 20px 0;
+}
+
+.ldg-tool-card {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 20px;
+}
+
+.ldg-tool-card h3 {
+    margin-top: 0;
+    font-size: 16px;
+}
+
+.ldg-logs-filters {
+    background: #fff;
+    border: 1px solid #c3c4c7;
+    border-radius: 4px;
+    padding: 15px;
+    margin: 20px 0;
+}
+
+.ldg-logs-filters form {
+    display: flex;
+    gap: 10px;
+    align-items: center;
+}
+
+.ldg-logs-count {
+    font-weight: 600;
+    margin: 15px 0;
+}
+
+.ldg-logs-table {
+    margin-top: 20px;
+}
+
+.ldg-logs-table .ldg-log-timestamp {
+    width: 150px;
+}
+
+.ldg-logs-table .ldg-log-level {
+    width: 100px;
+}
+
+.ldg-logs-table .ldg-log-user {
+    width: 120px;
+}
+
+.ldg-logs-table .ldg-log-actions {
+    width: 120px;
+}
+
+.ldg-log-badge {
+    display: inline-block;
+    padding: 4px 8px;
+    border-radius: 3px;
+    font-size: 11px;
+    font-weight: 600;
+    text-transform: uppercase;
+}
+
+#ldg-log-context-content {
+    background: #f6f7f7;
+    padding: 15px;
+    border-radius: 3px;
+    overflow-x: auto;
+    max-height: 400px;
+}
+
+@media (max-width: 768px) {
+    .ldg-dashboard-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ldg-results-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .ldg-settings .ldg-tools {
+        grid-template-columns: 1fr;
+    }
+
+    .ldg-search-form .search-box {
+        flex-direction: column;
+        align-items: stretch;
+    }
+
+    .ldg-search-form input[type="search"] {
+        max-width: 100%;
+    }
+}
+
+.notice.ldg-notice {
+    position: relative;
+    padding-left: 45px;
+}
+
+.notice.ldg-notice::before {
+    content: '\f120';
+    font-family: dashicons;
+    font-size: 24px;
+    position: absolute;
+    left: 12px;
+    top: 12px;
+}
+
+.notice.ldg-notice.notice-success::before {
+    content: '\f147';
+}
+
+.notice.ldg-notice.notice-error::before {
+    content: '\f534';
+}
