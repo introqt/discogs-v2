@@ -214,6 +214,11 @@ class LdgDiscogsClient
 
         $url = self::API_BASE_URL . $endpoint;
 
+        if (empty($this->accessToken) && !empty($this->consumerKey) && !empty($this->consumerSecret)) {
+            $params['key'] = $this->consumerKey;
+            $params['secret'] = $this->consumerSecret;
+        }
+
         if (!empty($params)) {
             $url .= '?' . http_build_query($params);
         }
@@ -290,8 +295,6 @@ class LdgDiscogsClient
 
         if (!empty($this->accessToken)) {
             $headers['Authorization'] = 'Discogs token=' . $this->accessToken;
-        } elseif (!empty($this->consumerKey) && !empty($this->consumerSecret)) {
-            $headers['Authorization'] = "Discogs key={$this->consumerKey}, secret={$this->consumerSecret}";
         }
 
         /**
