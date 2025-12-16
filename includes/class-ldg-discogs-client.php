@@ -210,12 +210,7 @@ class LdgDiscogsClient
         string $method = 'GET',
         int $retryCount = 0
     ): ?array {
-        $rateLimitBlock = $this->enforceRateLimit();
-
-        if (is_wp_error($rateLimitBlock)) {
-            $this->logger->log('warning', $rateLimitBlock->get_error_message());
-            return null;
-        }
+        $this->enforceRateLimit();
 
         $url = self::API_BASE_URL . $endpoint;
 
@@ -254,20 +249,12 @@ class LdgDiscogsClient
 
         $statusCode = wp_remote_retrieve_response_code($response);
         $body = wp_remote_retrieve_body($response);
-        $headers = wp_remote_retrieve_headers($response);
 
         if ($statusCode === 429) {
-            $retryAfter = $this->getRetryAfterSeconds($headers);
-            $this->updateRateLimitTracking($headers, $statusCode);
+            $this->logger->log('warning', 'Rate limit exceeded, waiting before retry');
 
-            $message = $retryAfter > 0
-                ? sprintf('Rate limit exceeded. Try again in %d seconds.', $retryAfter)
-                : 'Rate limit exceeded. Please retry shortly.';
-
-            $this->logger->log('warning', $message, ['retry_after' => $retryAfter]);
-
-            if ($retryCount < 1 && $retryAfter > 0 && $retryAfter <= 5) {
-                sleep($retryAfter);
+            if ($retryCount < 3) {
+                sleep(60);
                 return $this->makeRequest($endpoint, $params, $method, $retryCount + 1);
             }
 
@@ -278,7 +265,7 @@ class LdgDiscogsClient
             $data = json_decode($body, true);
 
             if (json_last_error() === JSON_ERROR_NONE) {
-                $this->updateRateLimitTracking($headers, $statusCode);
+                $this->updateRateLimitTracking();
                 return $data;
             }
 
@@ -319,121 +306,42 @@ class LdgDiscogsClient
     }
 
     /**
-     * Enforce rate limiting based on cached Discogs guidance
+     * Enforce rate limiting
      *
-     * @return \WP_Error|null
+     * @return void
      */
-    private function enforceRateLimit(): ?\WP_Error
+    private function enforceRateLimit(): void
     {
-        $state = get_transient('ldg_api_rate_limit_state');
+        $requestCount = get_transient('ldg_api_request_count');
 
-        if (!$state || empty($state['reset'])) {
-            return null;
+        if ($requestCount === false) {
+            set_transient('ldg_api_request_count', 1, 60);
+            return;
         }
 
-        $secondsUntilReset = (int)$state['reset'] - time();
-
-        if (!isset($state['remaining']) || $secondsUntilReset <= 0) {
-            delete_transient('ldg_api_rate_limit_state');
-            return null;
+        if ((int)$requestCount >= self::RATE_LIMIT) {
+            $this->logger->log('warning', 'Rate limit reached, waiting 60 seconds');
+            sleep(60);
+            delete_transient('ldg_api_request_count');
+            set_transient('ldg_api_request_count', 1, 60);
+            return;
         }
-
-        if ((int)$state['remaining'] <= 0) {
-            $message = sprintf(
-                /* translators: %d: seconds until Discogs rate limit resets */
-                __('Discogs rate limit reached. Try again in %d seconds.', 'livedg'),
-                max($secondsUntilReset, 1)
-            );
-
-            return new \WP_Error('ldg_rate_limit', $message, [
-                'retry_after' => $secondsUntilReset,
-            ]);
-        }
-
-        return null;
     }
 
     /**
      * Update rate limit tracking counter
      *
-     * @param array $headers Response headers
-     * @param int $statusCode Response status code
      * @return void
      */
-    private function updateRateLimitTracking(array $headers, int $statusCode): void
+    private function updateRateLimitTracking(): void
     {
-        $remaining = $this->getHeaderValue($headers, 'x-discogs-ratelimit-remaining');
-        $reset = $this->getHeaderValue($headers, 'x-discogs-ratelimit-reset');
-        $retryAfter = $this->getRetryAfterSeconds($headers);
+        $requestCount = get_transient('ldg_api_request_count');
 
-        if ($remaining === null && $reset === null && $retryAfter === 0) {
-            return;
+        if ($requestCount === false) {
+            set_transient('ldg_api_request_count', 1, 60);
+        } else {
+            set_transient('ldg_api_request_count', (int)$requestCount + 1, 60);
         }
-
-        $resetTime = time();
-
-        if ($reset !== null) {
-            $resetTime += (int)$reset;
-        } elseif ($retryAfter > 0) {
-            $resetTime += $retryAfter;
-        }
-
-        $state = [
-            'remaining' => $remaining !== null ? (int)$remaining : 0,
-            'reset' => $resetTime,
-            'last_status' => $statusCode,
-        ];
-
-        set_transient('ldg_api_rate_limit_state', $state, max($resetTime - time(), 60));
-    }
-
-    /**
-     * Extract a header value regardless of case
-     *
-     * @param array|\WP_HTTP_Headers $headers Response headers
-     * @param string $name Header name
-     * @return string|null
-     */
-    private function getHeaderValue($headers, string $name): ?string
-    {
-        if (empty($headers)) {
-            return null;
-        }
-
-        if (is_array($headers)) {
-            foreach ($headers as $key => $value) {
-                if (strtolower((string)$key) === strtolower($name)) {
-                    return is_array($value) ? (string)reset($value) : (string)$value;
-                }
-            }
-
-            return null;
-        }
-
-        $value = $headers->get($name);
-
-        if ($value === null) {
-            $value = $headers->get(strtolower($name));
-        }
-
-        return $value !== null ? (string)$value : null;
-    }
-
-    /**
-     * Parse retry-after value from response headers
-     *
-     * @param array|\WP_HTTP_Headers $headers Response headers
-     * @return int
-     */
-    private function getRetryAfterSeconds($headers): int
-    {
-        $retryAfter = $this->getHeaderValue($headers, 'retry-after');
-
-        if ($retryAfter === null) {
-            $retryAfter = $this->getHeaderValue($headers, 'x-discogs-ratelimit-reset');
-        }
-
-        return $retryAfter !== null ? max(0, (int)$retryAfter) : 0;
     }
 
     /**
