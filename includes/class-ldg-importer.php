@@ -51,6 +51,8 @@ class LdgImporter
      */
     public function importRelease(int $releaseId, array $options = []): int|false
     {
+        $options = $this->applyDefaultOptions($options);
+
         if (!class_exists('WooCommerce')) {
             $this->logger->log('error', 'WooCommerce is not active');
             return false;
@@ -115,9 +117,15 @@ class LdgImporter
             update_post_meta($productId, '_ldg_import_date', current_time('mysql'));
             update_post_meta($productId, '_ldg_release_data', wp_json_encode($release));
 
-            $this->importProductImage($productId, $release);
-            $this->importProductCategories($productId, $release);
-            $this->importProductTags($productId, $release);
+            if (!empty($options['import_images'])) {
+                $this->importProductImage($productId, $release);
+            }
+
+            if (!empty($options['auto_categorize'])) {
+                $this->importProductCategories($productId, $release);
+                $this->importProductTags($productId, $release);
+            }
+
             $this->importProductAttributes($productId, $release);
 
             /**
@@ -175,9 +183,15 @@ class LdgImporter
             update_post_meta($productId, '_ldg_last_sync', current_time('mysql'));
             update_post_meta($productId, '_ldg_release_data', wp_json_encode($release));
 
-            $this->importProductImage($productId, $release);
-            $this->importProductCategories($productId, $release);
-            $this->importProductTags($productId, $release);
+            if (!empty($options['import_images'])) {
+                $this->importProductImage($productId, $release);
+            }
+
+            if (!empty($options['auto_categorize'])) {
+                $this->importProductCategories($productId, $release);
+                $this->importProductTags($productId, $release);
+            }
+
             $this->importProductAttributes($productId, $release);
 
             /**
@@ -287,6 +301,29 @@ class LdgImporter
     {
         $prefix = get_option('ldg_sku_prefix', 'LDG');
         return $prefix ? "{$prefix}-{$release['id']}" : (string) $release['id'];
+    }
+
+    /**
+     * Merge saved defaults into import options
+     *
+     * @param array $options Import options
+     * @return array
+     */
+    private function applyDefaultOptions(array $options): array
+    {
+        if (!array_key_exists('status', $options)) {
+            $options['status'] = get_option('ldg_default_product_status', 'draft');
+        }
+
+        if (!array_key_exists('import_images', $options)) {
+            $options['import_images'] = rest_sanitize_boolean(get_option('ldg_import_images', true));
+        }
+
+        if (!array_key_exists('auto_categorize', $options)) {
+            $options['auto_categorize'] = rest_sanitize_boolean(get_option('ldg_auto_categorize', true));
+        }
+
+        return $options;
     }
 
     /**
