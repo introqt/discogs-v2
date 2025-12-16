@@ -5,7 +5,7 @@
  * Description: Integrates WooCommerce with Discogs.com REST API for music product management
  * Version: 1.0.0
  * Requires at least: 6.0
- * Requires PHP: 8.4
+ * Requires PHP: 7.4
  * Author: Your Name
  * Author URI: https://example.com
  * License: GPL v2 or later
