@@ -60,10 +60,50 @@ class LdgAjax
      */
     private function registerAjaxHandlers(): void
     {
+        add_action('wp_ajax_ldg_search_releases', [$this, 'handleSearchReleases']);
         add_action('wp_ajax_ldg_import_release', [$this, 'handleImportRelease']);
         add_action('wp_ajax_ldg_clear_cache', [$this, 'handleClearCache']);
         add_action('wp_ajax_ldg_clear_logs', [$this, 'handleClearLogs']);
         add_action('wp_ajax_ldg_export_logs', [$this, 'handleExportLogs']);
+    }
+
+    /**
+     * Handle search AJAX request
+     *
+     * @return void
+     */
+    public function handleSearchReleases(): void
+    {
+        check_ajax_referer('ldg_search_nonce', 'nonce');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error([
+                'message' => __('Insufficient permissions', 'livedg'),
+            ], 403);
+        }
+
+        $query = isset($_POST['query']) ? sanitize_text_field($_POST['query']) : '';
+        $page = isset($_POST['page']) ? absint($_POST['page']) : 1;
+
+        if (empty($query)) {
+            wp_send_json_error([
+                'message' => __('Search query is required', 'livedg'),
+            ], 400);
+        }
+
+        $discogsClient = ldg()->discogsClient;
+        $results = $discogsClient->searchReleases($query, ['page' => $page]);
+
+        if ($results !== null) {
+            wp_send_json_success([
+                'results' => $results['results'] ?? [],
+                'pagination' => $results['pagination'] ?? [],
+            ]);
+        } else {
+            wp_send_json_error([
+                'message' => __('Search failed. Please check your API credentials.', 'livedg'),
+            ], 500);
+        }
     }
 
     /**

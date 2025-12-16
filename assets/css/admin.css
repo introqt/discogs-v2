@@ -122,11 +122,13 @@
     display: flex;
     gap: 10px;
     align-items: center;
+    justify-content: flex-start;
+    margin: 0;
 }
 
 .ldg-search-form input[type="search"] {
-    flex: 1;
-    max-width: 600px;
+    width: 500px;
+    max-width: 100%;
 }
 
 .ldg-results-count {
@@ -368,4 +370,8 @@
 
 .notice.ldg-notice.notice-error::before {
     content: '\f534';
+}
+
+p.search-box {
+    float: none;
 }

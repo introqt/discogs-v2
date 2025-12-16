@@ -3,7 +3,7 @@
  * Plugin Name: LiveDG
  * Plugin URI: https://example.com/livedg
  * Description: Integrates WooCommerce with Discogs.com REST API for music product management
- * Version: 1.0.0
+ * Version: 1.0.1
  * Requires at least: 6.0
  * Requires PHP: 8.0
  * Author: Your Name
@@ -22,7 +22,7 @@ if (!defined('ABSPATH')) {
     exit;
 }
 
-define('LDG_VERSION', '1.0.0');
+define('LDG_VERSION', '1.0.1');
 define('LDG_PLUGIN_FILE', __FILE__);
 define('LDG_PLUGIN_DIR', plugin_dir_path(__FILE__));
 define('LDG_PLUGIN_URL', plugin_dir_url(__FILE__));
