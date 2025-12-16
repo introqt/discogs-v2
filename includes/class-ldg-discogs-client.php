@@ -102,11 +102,14 @@ class LdgDiscogsClient
         }
 
         $defaultParams = [
-            'q' => $query,
             'type' => 'release',
             'per_page' => 50,
             'page' => 1,
         ];
+
+        if ($query !== '') {
+            $defaultParams['q'] = $query;
+        }
 
         $params = array_merge($defaultParams, $params);
 

@@ -16,6 +16,9 @@ if (!defined('ABSPATH')) {
  */
 class LdgAjax
 {
+    private const SAVED_SEARCHES_META_KEY = 'ldg_saved_searches';
+    private const SAVED_SEARCHES_LIMIT = 50;
+
     /**
      * Importer instance
      *
@@ -61,6 +64,9 @@ class LdgAjax
     private function registerAjaxHandlers(): void
     {
         add_action('wp_ajax_ldg_search_releases', [$this, 'handleSearchReleases']);
+        add_action('wp_ajax_ldg_get_saved_searches', [$this, 'handleGetSavedSearches']);
+        add_action('wp_ajax_ldg_save_search', [$this, 'handleSaveSearch']);
+        add_action('wp_ajax_ldg_delete_saved_search', [$this, 'handleDeleteSavedSearch']);
         add_action('wp_ajax_ldg_import_release', [$this, 'handleImportRelease']);
         add_action('wp_ajax_ldg_clear_cache', [$this, 'handleClearCache']);
         add_action('wp_ajax_ldg_clear_logs', [$this, 'handleClearLogs']);
@@ -85,14 +91,20 @@ class LdgAjax
         $query = isset($_POST['query']) ? sanitize_text_field($_POST['query']) : '';
         $page = isset($_POST['page']) ? absint($_POST['page']) : 1;
 
-        if (empty($query)) {
+        $advancedParams = $this->getAdvancedSearchParamsFromRequest();
+        $criteriaParams = $advancedParams;
+        unset($criteriaParams['sort'], $criteriaParams['sort_order']);
+
+        if ($query === '' && empty($criteriaParams)) {
             wp_send_json_error([
-                'message' => __('Search query is required', 'livedg'),
+                'message' => __('Please enter a keyword or at least one filter.', 'livedg'),
             ], 400);
         }
 
         $discogsClient = ldg()->discogsClient;
-        $results = $discogsClient->searchReleases($query, ['page' => $page]);
+        $params = $advancedParams;
+        $params['page'] = max(1, $page);
+        $results = $discogsClient->searchReleases($query, $params);
 
         if ($results !== null) {
             wp_send_json_success([
@@ -104,6 +116,200 @@ class LdgAjax
                 'message' => __('Search failed. Please check your API credentials.', 'livedg'),
             ], 500);
         }
+    }
+
+    /**
+     * Get advanced Discogs search params from request.
+     *
+     * @return array<string, string|int>
+     */
+    private function getAdvancedSearchParamsFromRequest(): array
+    {
+        $params = [];
+
+        $map = [
+            'artist' => 'artist',
+            'release_title' => 'release_title',
+            'label' => 'label',
+            'catno' => 'catno',
+            'format' => 'format',
+            'country' => 'country',
+            'genre' => 'genre',
+            'style' => 'style',
+        ];
+
+        foreach ($map as $postKey => $apiKey) {
+            if (!isset($_POST[$postKey])) {
+                continue;
+            }
+
+            $value = sanitize_text_field((string)$_POST[$postKey]);
+
+            if ($value !== '') {
+                $params[$apiKey] = $value;
+            }
+        }
+
+        if (isset($_POST['year'])) {
+            $year = absint($_POST['year']);
+            if ($year > 0) {
+                $params['year'] = $year;
+            }
+        }
+
+        $sort = isset($_POST['sort']) ? sanitize_text_field((string)$_POST['sort']) : '';
+        $sortOrder = isset($_POST['sort_order']) ? sanitize_text_field((string)$_POST['sort_order']) : '';
+
+        $allowedSort = [
+            'artist',
+            'title',
+            'label',
+            'catno',
+            'year',
+            'format',
+            'country',
+        ];
+
+        if (in_array($sort, $allowedSort, true)) {
+            $params['sort'] = $sort;
+            if (in_array($sortOrder, ['asc', 'desc'], true)) {
+                $params['sort_order'] = $sortOrder;
+            }
+        }
+
+        return $params;
+    }
+
+    /**
+     * Return saved searches for current user.
+     *
+     * @return void
+     */
+    public function handleGetSavedSearches(): void
+    {
+        check_ajax_referer('ldg_search_nonce', 'nonce');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error([
+                'message' => __('Insufficient permissions', 'livedg'),
+            ], 403);
+        }
+
+        $searches = get_user_meta(get_current_user_id(), self::SAVED_SEARCHES_META_KEY, true);
+
+        if (!is_array($searches)) {
+            $searches = [];
+        }
+
+        wp_send_json_success([
+            'searches' => array_values($searches),
+        ]);
+    }
+
+    /**
+     * Save a search for current user.
+     *
+     * @return void
+     */
+    public function handleSaveSearch(): void
+    {
+        check_ajax_referer('ldg_search_nonce', 'nonce');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error([
+                'message' => __('Insufficient permissions', 'livedg'),
+            ], 403);
+        }
+
+        $name = isset($_POST['name']) ? sanitize_text_field((string)$_POST['name']) : '';
+        $query = isset($_POST['query']) ? sanitize_text_field((string)$_POST['query']) : '';
+
+        if ($name === '') {
+            wp_send_json_error([
+                'message' => __('Search name is required.', 'livedg'),
+            ], 400);
+        }
+
+        $params = $this->getAdvancedSearchParamsFromRequest();
+        $criteriaParams = $params;
+        unset($criteriaParams['sort'], $criteriaParams['sort_order']);
+
+        if ($query === '' && empty($criteriaParams)) {
+            wp_send_json_error([
+                'message' => __('Cannot save an empty search.', 'livedg'),
+            ], 400);
+        }
+
+        $searches = get_user_meta(get_current_user_id(), self::SAVED_SEARCHES_META_KEY, true);
+
+        if (!is_array($searches)) {
+            $searches = [];
+        }
+
+        if (count($searches) >= self::SAVED_SEARCHES_LIMIT) {
+            wp_send_json_error([
+                'message' => sprintf(
+                    __('You can only save up to %d searches.', 'livedg'),
+                    self::SAVED_SEARCHES_LIMIT
+                ),
+            ], 400);
+        }
+
+        $id = function_exists('wp_generate_uuid4') ? wp_generate_uuid4() : uniqid('ldg_', true);
+
+        $search = [
+            'id' => $id,
+            'name' => $name,
+            'query' => $query,
+            'params' => $params,
+        ];
+
+        $searches[$id] = $search;
+        update_user_meta(get_current_user_id(), self::SAVED_SEARCHES_META_KEY, $searches);
+
+        wp_send_json_success([
+            'search' => $search,
+            'searches' => array_values($searches),
+        ]);
+    }
+
+    /**
+     * Delete a saved search for current user.
+     *
+     * @return void
+     */
+    public function handleDeleteSavedSearch(): void
+    {
+        check_ajax_referer('ldg_search_nonce', 'nonce');
+
+        if (!current_user_can('manage_woocommerce')) {
+            wp_send_json_error([
+                'message' => __('Insufficient permissions', 'livedg'),
+            ], 403);
+        }
+
+        $id = isset($_POST['id']) ? sanitize_text_field((string)$_POST['id']) : '';
+
+        if ($id === '') {
+            wp_send_json_error([
+                'message' => __('Invalid saved search.', 'livedg'),
+            ], 400);
+        }
+
+        $searches = get_user_meta(get_current_user_id(), self::SAVED_SEARCHES_META_KEY, true);
+
+        if (!is_array($searches) || !isset($searches[$id])) {
+            wp_send_json_error([
+                'message' => __('Saved search not found.', 'livedg'),
+            ], 404);
+        }
+
+        unset($searches[$id]);
+        update_user_meta(get_current_user_id(), self::SAVED_SEARCHES_META_KEY, $searches);
+
+        wp_send_json_success([
+            'searches' => array_values($searches),
+        ]);
     }
 
     /**
