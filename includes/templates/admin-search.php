@@ -94,7 +94,7 @@ if (!empty($searchQuery) && check_admin_referer('ldg_search_nonce')) {
                                             data-release-id="<?php echo esc_attr($result['id']); ?>">
                                         <?php echo esc_html__('Import', 'livedg'); ?>
                                     </button>
-                                    <a href="<?php echo esc_url($result['uri']); ?>" 
+                                    <a href="https://www.discogs.com<?php echo esc_attr($result['uri']); ?>" 
                                        target="_blank" 
                                        class="button">
                                         <?php echo esc_html__('View on Discogs', 'livedg'); ?>
