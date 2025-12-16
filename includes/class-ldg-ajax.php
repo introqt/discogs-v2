@@ -131,9 +131,13 @@ class LdgAjax
 
         $options = [
             'price' => isset($_POST['price']) ? floatval($_POST['price']) : 0,
-            'status' => isset($_POST['status']) ? sanitize_text_field($_POST['status']) : 'draft',
+            'status' => isset($_POST['status'])
+                ? sanitize_text_field($_POST['status'])
+                : get_option('ldg_default_product_status', 'draft'),
             'manage_stock' => isset($_POST['manage_stock']) && $_POST['manage_stock'] === 'true',
             'stock_quantity' => isset($_POST['stock_quantity']) ? absint($_POST['stock_quantity']) : 0,
+            'import_images' => rest_sanitize_boolean(get_option('ldg_import_images', true)),
+            'auto_categorize' => rest_sanitize_boolean(get_option('ldg_auto_categorize', true)),
         ];
 
         $productId = $this->importer->importRelease($releaseId, $options);
