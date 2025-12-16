@@ -16,6 +16,10 @@ if (!defined('ABSPATH')) {
  */
 class LdgImporter
 {
+    private const META_KEY_DISCOGS_TRACKLIST_HTML = '_ldg_discogs_tracklist_html';
+    private const META_KEY_DISCOGS_CREDITS_HTML = '_ldg_discogs_credits_html';
+    private const META_KEY_DISCOGS_IMAGE_URI = '_ldg_discogs_image_uri';
+
     /**
      * Discogs client instance
      *
@@ -117,8 +121,10 @@ class LdgImporter
             update_post_meta($productId, '_ldg_import_date', current_time('mysql'));
             update_post_meta($productId, '_ldg_release_data', wp_json_encode($release));
 
+            $this->importTracklistAndCredits($productId, $release);
+
             if (!empty($options['import_images'])) {
-                $this->importProductImage($productId, $release);
+                $this->importProductImages($productId, $release);
             }
 
             if (!empty($options['auto_categorize'])) {
@@ -183,8 +189,10 @@ class LdgImporter
             update_post_meta($productId, '_ldg_last_sync', current_time('mysql'));
             update_post_meta($productId, '_ldg_release_data', wp_json_encode($release));
 
+            $this->importTracklistAndCredits($productId, $release);
+
             if (!empty($options['import_images'])) {
-                $this->importProductImage($productId, $release);
+                $this->importProductImages($productId, $release);
             }
 
             if (!empty($options['auto_categorize'])) {
@@ -245,18 +253,6 @@ class LdgImporter
 
         if (!empty($release['notes'])) {
             $parts[] = wp_kses_post($release['notes']);
-        }
-
-        if (!empty($release['tracklist'])) {
-            $parts[] = "<h3>Tracklist</h3>";
-            $parts[] = "<ol>";
-
-            foreach ($release['tracklist'] as $track) {
-                $duration = !empty($track['duration']) ? " ({$track['duration']})" : '';
-                $parts[] = "<li>{$track['position']} - {$track['title']}{$duration}</li>";
-            }
-
-            $parts[] = "</ol>";
         }
 
         return implode("\n", $parts);
@@ -327,15 +323,15 @@ class LdgImporter
     }
 
     /**
-     * Import product image from Discogs
+     * Import all product images from Discogs as featured + gallery
      *
      * @param int $productId Product ID
      * @param array $release Release data
      * @return void
      */
-    private function importProductImage(int $productId, array $release): void
+    private function importProductImages(int $productId, array $release): void
     {
-        if (empty($release['images'][0]['uri'])) {
+        if (empty($release['images']) || !is_array($release['images'])) {
             return;
         }
 
@@ -343,12 +339,282 @@ class LdgImporter
         require_once ABSPATH . 'wp-admin/includes/media.php';
         require_once ABSPATH . 'wp-admin/includes/image.php';
 
-        $imageUrl = $release['images'][0]['uri'];
-        $attachmentId = media_sideload_image($imageUrl, $productId, null, 'id');
+        $imageUris = $this->getReleaseImageUris($release);
 
-        if (!is_wp_error($attachmentId)) {
-            set_post_thumbnail($productId, $attachmentId);
+        if (empty($imageUris)) {
+            return;
         }
+
+        $attachmentIds = [];
+
+        foreach ($imageUris as $imageUri) {
+            $attachmentId = $this->getOrCreateAttachmentFromDiscogsImageUri($productId, $imageUri);
+
+            if ($attachmentId) {
+                $attachmentIds[] = $attachmentId;
+            }
+        }
+
+        $attachmentIds = array_values(array_unique(array_filter($attachmentIds)));
+
+        if (empty($attachmentIds)) {
+            return;
+        }
+
+        set_post_thumbnail($productId, $attachmentIds[0]);
+
+        $galleryIds = array_slice($attachmentIds, 1);
+        $product = wc_get_product($productId);
+
+        if ($product) {
+            $product->set_gallery_image_ids($galleryIds);
+            $product->save();
+        } else {
+            update_post_meta($productId, '_product_image_gallery', implode(',', $galleryIds));
+        }
+    }
+
+    /**
+     * Persist tracklist and credits for tab rendering
+     *
+     * @param int $productId Product ID
+     * @param array $release Release data
+     * @return void
+     */
+    private function importTracklistAndCredits(int $productId, array $release): void
+    {
+        $tracklistHtml = $this->buildTracklistHtml($release['tracklist'] ?? []);
+        $creditsHtml = $this->buildCreditsHtml($release['extraartists'] ?? []);
+
+        if ($tracklistHtml === '') {
+            delete_post_meta($productId, self::META_KEY_DISCOGS_TRACKLIST_HTML);
+        } else {
+            update_post_meta($productId, self::META_KEY_DISCOGS_TRACKLIST_HTML, $tracklistHtml);
+        }
+
+        if ($creditsHtml === '') {
+            delete_post_meta($productId, self::META_KEY_DISCOGS_CREDITS_HTML);
+        } else {
+            update_post_meta($productId, self::META_KEY_DISCOGS_CREDITS_HTML, $creditsHtml);
+        }
+    }
+
+    /**
+     * Get image URIs from Discogs release (primary first)
+     *
+     * @param array $release Release data
+     * @return array
+     */
+    private function getReleaseImageUris(array $release): array
+    {
+        if (empty($release['images']) || !is_array($release['images'])) {
+            return [];
+        }
+
+        $primary = [];
+        $secondary = [];
+
+        foreach ($release['images'] as $image) {
+            if (empty($image['uri']) || !is_string($image['uri'])) {
+                continue;
+            }
+
+            $uri = trim($image['uri']);
+
+            if ($uri === '') {
+                continue;
+            }
+
+            if (($image['type'] ?? '') === 'primary') {
+                $primary[] = $uri;
+            } else {
+                $secondary[] = $uri;
+            }
+        }
+
+        return array_values(array_unique(array_merge($primary, $secondary)));
+    }
+
+    /**
+     * Download or reuse an attachment for a Discogs image URI
+     *
+     * @param int $productId Product ID
+     * @param string $imageUri Discogs image URI
+     * @return int|null Attachment ID
+     */
+    private function getOrCreateAttachmentFromDiscogsImageUri(int $productId, string $imageUri): ?int
+    {
+        $existingId = $this->findAttachmentIdByDiscogsImageUri($imageUri);
+
+        if ($existingId) {
+            return $existingId;
+        }
+
+        $attachmentId = media_sideload_image($imageUri, $productId, null, 'id');
+
+        if (is_wp_error($attachmentId) || !is_int($attachmentId)) {
+            $this->logger->log('error', 'Failed to sideload Discogs image', [
+                'product_id' => $productId,
+                'image_uri' => $imageUri,
+                'error' => is_wp_error($attachmentId) ? $attachmentId->get_error_message() : 'unknown',
+            ]);
+            return null;
+        }
+
+        update_post_meta($attachmentId, self::META_KEY_DISCOGS_IMAGE_URI, $imageUri);
+
+        return $attachmentId;
+    }
+
+    /**
+     * Find an attachment already imported from a Discogs image URI
+     *
+     * @param string $imageUri Discogs image URI
+     * @return int|null Attachment ID
+     */
+    private function findAttachmentIdByDiscogsImageUri(string $imageUri): ?int
+    {
+        $query = new \WP_Query([
+            'post_type' => 'attachment',
+            'post_status' => 'inherit',
+            'posts_per_page' => 1,
+            'fields' => 'ids',
+            'meta_query' => [
+                [
+                    'key' => self::META_KEY_DISCOGS_IMAGE_URI,
+                    'value' => $imageUri,
+                ],
+            ],
+            'no_found_rows' => true,
+            'update_post_meta_cache' => false,
+            'update_post_term_cache' => false,
+        ]);
+
+        if (empty($query->posts[0])) {
+            return null;
+        }
+
+        return (int) $query->posts[0];
+    }
+
+    /**
+     * Build HTML for a Discogs tracklist array
+     *
+     * @param array $tracklist Tracklist data
+     * @return string
+     */
+    private function buildTracklistHtml(array $tracklist): string
+    {
+        if (empty($tracklist)) {
+            return '';
+        }
+
+        $listHtml = $this->buildTracklistListHtml($tracklist);
+
+        if ($listHtml === '') {
+            return '';
+        }
+
+        return '<div class="ldg-tracklist">' . "\n" . $listHtml . "\n" . '</div>';
+    }
+
+    /**
+     * Build an ordered list HTML for a Discogs tracklist array (supports sub_tracks)
+     *
+     * @param array $tracklist Tracklist data
+     * @return string
+     */
+    private function buildTracklistListHtml(array $tracklist): string
+    {
+        $items = [];
+
+        foreach ($tracklist as $track) {
+            if (empty($track['title'])) {
+                continue;
+            }
+
+            $position = isset($track['position']) ? trim((string) $track['position']) : '';
+            $title = trim((string) $track['title']);
+            $duration = isset($track['duration']) ? trim((string) $track['duration']) : '';
+
+            $label = $position !== '' ? $position . ' — ' : '';
+            $suffix = $duration !== '' ? ' (' . $duration . ')' : '';
+
+            $item = esc_html($label . $title . $suffix);
+
+            if (!empty($track['sub_tracks']) && is_array($track['sub_tracks'])) {
+                $subList = $this->buildTracklistListHtml($track['sub_tracks']);
+
+                if ($subList !== '') {
+                    $item .= "\n" . $subList;
+                }
+            }
+
+            $items[] = '<li>' . $item . '</li>';
+        }
+
+        if (empty($items)) {
+            return '';
+        }
+
+        return "<ol>\n" . implode("\n", $items) . "\n</ol>";
+    }
+
+    /**
+     * Build HTML for Discogs credits (extraartists)
+     *
+     * @param array $credits Credits data
+     * @return string
+     */
+    private function buildCreditsHtml(array $credits): string
+    {
+        if (empty($credits)) {
+            return '';
+        }
+
+        $byRole = [];
+
+        foreach ($credits as $credit) {
+            $name = isset($credit['name']) ? trim((string) $credit['name']) : '';
+            $role = isset($credit['role']) ? trim((string) $credit['role']) : '';
+
+            if ($name === '') {
+                continue;
+            }
+
+            if ($role === '') {
+                $role = __('Credits', 'livedg');
+            }
+
+            if (!array_key_exists($role, $byRole)) {
+                $byRole[$role] = [];
+            }
+
+            $byRole[$role][] = $name;
+        }
+
+        if (empty($byRole)) {
+            return '';
+        }
+
+        $lines = [];
+        $lines[] = '<div class="ldg-credits">';
+        $lines[] = '<ul>';
+
+        foreach ($byRole as $role => $names) {
+            $names = array_values(array_unique(array_filter($names)));
+
+            if (empty($names)) {
+                continue;
+            }
+
+            $lines[] = '<li><strong>' . esc_html($role) . ':</strong> ' . esc_html(implode(', ', $names)) . '</li>';
+        }
+
+        $lines[] = '</ul>';
+        $lines[] = '</div>';
+
+        return implode("\n", $lines);
     }
 
     /**

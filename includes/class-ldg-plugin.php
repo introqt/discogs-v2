@@ -80,6 +80,13 @@ class LdgPlugin
     public LdgAjax $ajax;
 
     /**
+     * Public handler instance
+     *
+     * @var LdgPublic
+     */
+    public LdgPublic $public;
+
+    /**
      * Get singleton instance
      *
      * @return LdgPlugin
@@ -119,6 +126,7 @@ class LdgPlugin
         $this->importer = new LdgImporter($this->discogsClient, $this->logger);
         $this->admin = new LdgAdmin($this->settings, $this->discogsClient, $this->importer);
         $this->ajax = new LdgAjax($this->importer, $this->cache, $this->logger);
+        $this->public = new LdgPublic();
     }
 
     /**
@@ -165,6 +173,8 @@ class LdgPlugin
      */
     private function definePublicHooks(): void
     {
+        $this->loader->addFilter('woocommerce_product_tabs', $this->public, 'addProductTabs', 25, 1);
+
         /**
          * Filter to allow developers to add custom public hooks
          *
