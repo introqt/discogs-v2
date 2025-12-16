@@ -286,7 +286,7 @@ class LdgImporter
     private function generateSku(array $release): string
     {
         $prefix = get_option('ldg_sku_prefix', 'LDG');
-        return "{$prefix}-{$release['id']}";
+        return $prefix ? "{$prefix}-{$release['id']}" : (string) $release['id'];
     }
 
     /**
