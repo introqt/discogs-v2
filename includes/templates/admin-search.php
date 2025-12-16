@@ -18,17 +18,111 @@ if (!defined('ABSPATH')) {
     <div class="ldg-search-form">
         <form id="ldg-search-form">
             <?php wp_nonce_field('ldg_search_nonce', 'ldg_search_nonce'); ?>
+
+            <div class="ldg-saved-searches">
+                <label for="ldg-saved-search-select" class="screen-reader-text">
+                    <?php echo esc_html__('Saved searches', 'livedg'); ?>
+                </label>
+                <select id="ldg-saved-search-select" class="regular-text" aria-label="<?php echo esc_attr__('Saved searches', 'livedg'); ?>">
+                    <option value=""><?php echo esc_html__('Saved searches…', 'livedg'); ?></option>
+                </select>
+                <button type="button" class="button" id="ldg-load-saved-search">
+                    <?php echo esc_html__('Load', 'livedg'); ?>
+                </button>
+                <button type="button" class="button" id="ldg-save-current-search">
+                    <?php echo esc_html__('Save', 'livedg'); ?>
+                </button>
+                <button type="button" class="button" id="ldg-delete-saved-search">
+                    <?php echo esc_html__('Delete', 'livedg'); ?>
+                </button>
+            </div>
             
             <p class="search-box">
                 <input type="search" 
                        name="s" 
                        id="ldg-search-input" 
-                       placeholder="<?php echo esc_attr__('Search for artist, album, or catalog number...', 'livedg'); ?>" 
+                       placeholder="<?php echo esc_attr__('Keywords (optional)', 'livedg'); ?>" 
                        class="regular-text" />
                 <button type="submit" class="button button-primary">
                     <?php echo esc_html__('Search', 'livedg'); ?>
                 </button>
+                <button type="button" class="button" id="ldg-reset-filters">
+                    <?php echo esc_html__('Reset', 'livedg'); ?>
+                </button>
             </p>
+
+            <details class="ldg-advanced-search" open>
+                <summary><?php echo esc_html__('Advanced filters', 'livedg'); ?></summary>
+
+                <div class="ldg-filters-grid">
+                    <div class="ldg-field">
+                        <label for="ldg-filter-artist"><?php echo esc_html__('Artist', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-artist" class="regular-text" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-release-title"><?php echo esc_html__('Release title', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-release-title" class="regular-text" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-label"><?php echo esc_html__('Label', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-label" class="regular-text" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-catno"><?php echo esc_html__('Catalog number', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-catno" class="regular-text" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-year"><?php echo esc_html__('Year', 'livedg'); ?></label>
+                        <input type="number" id="ldg-filter-year" min="0" step="1" class="small-text" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-format"><?php echo esc_html__('Format', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-format" class="regular-text" placeholder="<?php echo esc_attr__('e.g. Vinyl, CD', 'livedg'); ?>" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-country"><?php echo esc_html__('Country', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-country" class="regular-text" placeholder="<?php echo esc_attr__('e.g. US, UK, Japan', 'livedg'); ?>" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-genre"><?php echo esc_html__('Genre', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-genre" class="regular-text" placeholder="<?php echo esc_attr__('Exact Discogs genre', 'livedg'); ?>" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-filter-style"><?php echo esc_html__('Style', 'livedg'); ?></label>
+                        <input type="text" id="ldg-filter-style" class="regular-text" placeholder="<?php echo esc_attr__('Exact Discogs style', 'livedg'); ?>" />
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-sort"><?php echo esc_html__('Sort', 'livedg'); ?></label>
+                        <select id="ldg-sort">
+                            <option value=""><?php echo esc_html__('Relevance', 'livedg'); ?></option>
+                            <option value="artist"><?php echo esc_html__('Artist', 'livedg'); ?></option>
+                            <option value="title"><?php echo esc_html__('Title', 'livedg'); ?></option>
+                            <option value="label"><?php echo esc_html__('Label', 'livedg'); ?></option>
+                            <option value="catno"><?php echo esc_html__('Catalog number', 'livedg'); ?></option>
+                            <option value="year"><?php echo esc_html__('Year', 'livedg'); ?></option>
+                            <option value="format"><?php echo esc_html__('Format', 'livedg'); ?></option>
+                            <option value="country"><?php echo esc_html__('Country', 'livedg'); ?></option>
+                        </select>
+                    </div>
+
+                    <div class="ldg-field">
+                        <label for="ldg-sort-order"><?php echo esc_html__('Order', 'livedg'); ?></label>
+                        <select id="ldg-sort-order">
+                            <option value="asc"><?php echo esc_html__('Ascending', 'livedg'); ?></option>
+                            <option value="desc"><?php echo esc_html__('Descending', 'livedg'); ?></option>
+                        </select>
+                    </div>
+                </div>
+            </details>
         </form>
     </div>
 
