@@ -10,28 +10,19 @@ namespace LiveDG;
 if (!defined('ABSPATH')) {
     exit;
 }
-
-$searchQuery = isset($_GET['s']) ? sanitize_text_field($_GET['s']) : '';
-$searchResults = null;
-
-if (!empty($searchQuery) && check_admin_referer('ldg_search_nonce')) {
-    $searchResults = ldg()->discogsClient->searchReleases($searchQuery);
-}
 ?>
 
 <div class="wrap ldg-search">
     <h1><?php echo esc_html__('Search Discogs', 'livedg'); ?></h1>
 
     <div class="ldg-search-form">
-        <form method="get" action="">
-            <input type="hidden" name="page" value="livedg-search" />
-            <?php wp_nonce_field('ldg_search_nonce'); ?>
+        <form id="ldg-search-form">
+            <?php wp_nonce_field('ldg_search_nonce', 'ldg_search_nonce'); ?>
             
             <p class="search-box">
                 <input type="search" 
                        name="s" 
                        id="ldg-search-input" 
-                       value="<?php echo esc_attr($searchQuery); ?>" 
                        placeholder="<?php echo esc_attr__('Search for artist, album, or catalog number...', 'livedg'); ?>" 
                        class="regular-text" />
                 <button type="submit" class="button button-primary">
@@ -41,98 +32,11 @@ if (!empty($searchQuery) && check_admin_referer('ldg_search_nonce')) {
         </form>
     </div>
 
-    <?php if ($searchResults !== null) : ?>
-        <div class="ldg-search-results">
-            <?php if (!empty($searchResults['results'])) : ?>
-                <p class="ldg-results-count">
-                    <?php
-                    printf(
-                        esc_html__('Found %d results', 'livedg'),
-                        (int)($searchResults['pagination']['items'] ?? count($searchResults['results']))
-                    );
-                    ?>
-                </p>
+    <div id="ldg-search-loading" style="display: none;">
+        <p><?php echo esc_html__('Searching...', 'livedg'); ?></p>
+    </div>
 
-                <div class="ldg-results-grid">
-                    <?php foreach ($searchResults['results'] as $result) : ?>
-                        <div class="ldg-result-card" data-release-id="<?php echo esc_attr($result['id']); ?>">
-                            <?php if (!empty($result['cover_image'])) : ?>
-                                <div class="ldg-result-image">
-                                    <img src="<?php echo esc_url($result['cover_image']); ?>" 
-                                         alt="<?php echo esc_attr($result['title']); ?>" />
-                                </div>
-                            <?php endif; ?>
-
-                            <div class="ldg-result-content">
-                                <h3 class="ldg-result-title">
-                                    <?php echo esc_html($result['title']); ?>
-                                </h3>
-
-                                <div class="ldg-result-meta">
-                                    <?php if (!empty($result['year'])) : ?>
-                                        <span class="ldg-result-year">
-                                            <?php echo esc_html($result['year']); ?>
-                                        </span>
-                                    <?php endif; ?>
-
-                                    <?php if (!empty($result['format'])) : ?>
-                                        <span class="ldg-result-format">
-                                            <?php echo esc_html(implode(', ', $result['format'])); ?>
-                                        </span>
-                                    <?php endif; ?>
-
-                                    <?php if (!empty($result['label'])) : ?>
-                                        <span class="ldg-result-label">
-                                            <?php echo esc_html(implode(', ', $result['label'])); ?>
-                                        </span>
-                                    <?php endif; ?>
-                                </div>
-
-                                <div class="ldg-result-actions">
-                                    <button type="button" 
-                                            class="button button-primary ldg-import-btn" 
-                                            data-release-id="<?php echo esc_attr($result['id']); ?>">
-                                        <?php echo esc_html__('Import', 'livedg'); ?>
-                                    </button>
-                                    <a href="https://www.discogs.com<?php echo esc_attr($result['uri']); ?>" 
-                                       target="_blank" 
-                                       class="button">
-                                        <?php echo esc_html__('View on Discogs', 'livedg'); ?>
-                                    </a>
-                                </div>
-                            </div>
-                        </div>
-                    <?php endforeach; ?>
-                </div>
-
-                <?php if (!empty($searchResults['pagination']['pages']) && $searchResults['pagination']['pages'] > 1) : ?>
-                    <div class="ldg-pagination">
-                        <?php
-                        $currentPage = (int)($searchResults['pagination']['page'] ?? 1);
-                        $totalPages = (int)$searchResults['pagination']['pages'];
-
-                        for ($i = 1; $i <= min($totalPages, 10); $i++) :
-                            $pageUrl = add_query_arg([
-                                'page' => 'livedg-search',
-                                's' => $searchQuery,
-                                'paged' => $i,
-                            ], admin_url('admin.php'));
-                            ?>
-                            <a href="<?php echo esc_url($pageUrl); ?>" 
-                               class="button <?php echo $i === $currentPage ? 'button-primary' : ''; ?>">
-                                <?php echo esc_html($i); ?>
-                            </a>
-                        <?php endfor; ?>
-                    </div>
-                <?php endif; ?>
-
-            <?php else : ?>
-                <div class="notice notice-warning">
-                    <p><?php echo esc_html__('No results found. Try a different search term.', 'livedg'); ?></p>
-                </div>
-            <?php endif; ?>
-        </div>
-    <?php endif; ?>
+    <div id="ldg-search-results"></div>
 
     <div id="ldg-import-modal" class="ldg-modal" style="display: none;">
         <div class="ldg-modal-content">

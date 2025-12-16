@@ -95,10 +95,22 @@ class LdgAdmin
         wp_localize_script('ldg-admin', 'ldgAdmin', [
             'ajaxUrl' => admin_url('admin-ajax.php'),
             'nonce' => wp_create_nonce('ldg_admin_nonce'),
+            'searchNonce' => wp_create_nonce('ldg_search_nonce'),
             'i18n' => [
                 'confirmImport' => __('Are you sure you want to import this product?', 'livedg'),
                 'importSuccess' => __('Product imported successfully!', 'livedg'),
                 'importError' => __('Error importing product. Please try again.', 'livedg'),
+                'noResults' => __('No results found. Try a different search term.', 'livedg'),
+                'foundResults' => __('Found %d results', 'livedg'),
+                'year' => __('Year', 'livedg'),
+                'label' => __('Label', 'livedg'),
+                'format' => __('Format', 'livedg'),
+                'import' => __('Import', 'livedg'),
+                'viewOnDiscogs' => __('View on Discogs', 'livedg'),
+                'previous' => __('Previous', 'livedg'),
+                'next' => __('Next', 'livedg'),
+                'page' => __('Page', 'livedg'),
+                'of' => __('of', 'livedg'),
             ],
         ]);
     }
